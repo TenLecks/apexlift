@@ -1,20 +1,20 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# ApexLift Android
 
-# Run and deploy your AI Studio app
+Android APK shell for **ApexLift**. The app's code lives in
+[TenLecks/ApexLift-Google](https://github.com/TenLecks/ApexLift-Google) and is edited in Google AI Studio.
+Don't edit the app here; AI Studio would overwrite it.
 
-This contains everything you need to run your app locally.
+## How updates reach the phone
+1. AI Studio pushes to `ApexLift-Google`.
+2. `.github/workflows/publish-update.yml` checks it every ~10 min, builds it, and publishes
+   `bundle.zip` as a release here. Run the workflow manually to skip the wait.
+3. The installed APK (`apk/updater.js` + `@capgo/capacitor-updater`) downloads the latest release
+   on launch and switches to it on the next app restart. A broken update rolls back automatically.
 
-View your app in AI Studio: https://ai.studio/apps/4a1b1435-1196-4700-b5a3-940f067c4b35
+## Rebuilding the APK (only for native changes: name, icon, permissions, plugins)
+    npm install
+    npm run sync
+    cd android && ./gradlew assembleDebug
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Needs JDK 21 (`JAVA_HOME`) and the Android SDK (`android/local.properties`).
+Build on the same machine as before so the new APK installs over the old one (same debug key).

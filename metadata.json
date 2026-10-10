@@ -1,8 +1,0 @@
-{
-  "name": "ApexLift - Adaptive 12-Week Fitness Tracker",
-  "description": "Science-based 12-week hypertrophy program with dynamic schedule adaptation, RIR/RPE autoregulation, weight progression targets, and gamified badges.",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
-}

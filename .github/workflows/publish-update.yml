@@ -1,14 +1,18 @@
-# Every push to main builds the web app and publishes it as a GitHub Release.
-# The installed APK checks /releases/latest on launch and downloads bundle.zip.
+# Builds the web app from AI Studio's repo (TenLecks/ApexLift-Google) and publishes it
+# as a GitHub Release here. The installed APK checks /releases/latest on launch and
+# downloads bundle.zip. AI Studio only pushes (never pulls), so the build lives in this
+# repo where AI Studio can't overwrite it; we poll its repo for new commits instead.
 name: Publish app update
 
 on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
   push:
     branches: [main]
-    paths-ignore:
-      - 'android/**'
-      - '**.md'
-  workflow_dispatch:
+    paths:
+      - 'apk/**'
+      - '.github/workflows/**'
 
 permissions:
   contents: write
@@ -17,31 +21,70 @@ concurrency:
   group: publish-update
   cancel-in-progress: false
 
+env:
+  SOURCE_REPO: TenLecks/ApexLift-Google
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Check for new AI Studio commits
+        id: src
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git ls-remote "https://github.com/$SOURCE_REPO" HEAD | cut -f1)
+          # The latest release's notes record which source commit it was built from.
+          last=$(gh release view --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null \
+                 | sed -n 's/^source: *\([0-9a-f]*\).*/\1/p' || true)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          # Scheduled runs only build when AI Studio pushed something new; manual runs and
+          # changes to the updater/workflow always rebuild.
+          if [ "${{ github.event_name }}" = schedule ] && [ "$sha" = "$last" ]; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "No new commits in $SOURCE_REPO ($sha)."
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
 
-      - uses: actions/setup-node@v4
+      - if: steps.src.outputs.build == 'true'
+        uses: actions/checkout@v4
+
+      - if: steps.src.outputs.build == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ steps.src.outputs.sha }}
+          path: web
+
+      - if: steps.src.outputs.build == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 22
 
       # --legacy-peer-deps: AI Studio's package.json pins an esbuild that conflicts with vite's peer range.
-      - run: npm install --legacy-peer-deps --no-audit --no-fund
+      - if: steps.src.outputs.build == 'true'
+        name: Build web app
+        working-directory: web
+        run: |
+          npm install --legacy-peer-deps --no-audit --no-fund
+          npm run build
 
-      - run: npm run build
+      - if: steps.src.outputs.build == 'true'
+        run: node apk/inject.mjs web/dist
 
-      - run: node apk/inject.mjs
+      - if: steps.src.outputs.build == 'true'
+        name: Zip bundle
+        run: cd web/dist && zip -qr "$GITHUB_WORKSPACE/bundle.zip" .
 
-      - name: Zip bundle
-        run: cd dist && zip -qr ../bundle.zip .
-
-      - name: Create release
+      - if: steps.src.outputs.build == 'true'
+        name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          msg=$(cd web && git log -1 --format=%s)
+          printf 'source: %s\nshell: %s\n\n%s\n' "${{ steps.src.outputs.sha }}" "$GITHUB_SHA" "$msg" > notes.md
           gh release create "v${{ github.run_number }}" bundle.zip \
             --title "Update v${{ github.run_number }}" \
-            --notes "Built from ${GITHUB_SHA::7}" \
+            --notes-file notes.md \
             --latest

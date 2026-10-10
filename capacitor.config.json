@@ -1,7 +1,7 @@
 {
   "appId": "com.omer.apexlift",
   "appName": "ApexLift",
-  "webDir": "dist",
+  "webDir": "web/dist",
   "plugins": {
     "CapacitorUpdater": {
       "autoUpdate": false,
