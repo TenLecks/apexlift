@@ -1,0 +1,47 @@
+# Every push to main builds the web app and publishes it as a GitHub Release.
+# The installed APK checks /releases/latest on launch and downloads bundle.zip.
+name: Publish app update
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'android/**'
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-update
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # --legacy-peer-deps: AI Studio's package.json pins an esbuild that conflicts with vite's peer range.
+      - run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - run: npm run build
+
+      - run: node apk/inject.mjs
+
+      - name: Zip bundle
+        run: cd dist && zip -qr ../bundle.zip .
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ github.run_number }}" bundle.zip \
+            --title "Update v${{ github.run_number }}" \
+            --notes "Built from ${GITHUB_SHA::7}" \
+            --latest

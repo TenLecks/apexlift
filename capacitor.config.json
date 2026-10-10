@@ -1,0 +1,12 @@
+{
+  "appId": "com.omer.apexlift",
+  "appName": "ApexLift",
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "statsUrl": "",
+      "appReadyTimeout": 10000
+    }
+  }
+}
