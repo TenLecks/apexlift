@@ -83,6 +83,15 @@
         log('latest release has no bundle.zip');
         return;
       }
+      // The plugin refuses downloads without the zip's SHA-256. GitHub publishes it as the
+      // asset digest; the release notes carry it too ("bundle-sha256: …") as a fallback.
+      var digest = (asset.digest || '').replace(/^sha256:/, '');
+      var noted = /bundle-sha256:\s*([0-9a-f]{64})/i.exec(release.body || '');
+      var checksum = /^[0-9a-f]{64}$/i.test(digest) ? digest : noted ? noted[1] : '';
+      if (!checksum) {
+        log(version + ' has no checksum — cannot download it');
+        return;
+      }
       if (running === version) {
         log('up to date (' + version + ')');
         return;
@@ -95,7 +104,7 @@
       if (!bundle) {
         log('downloading ' + version + ' …');
         bundle = await withTimeout(
-          C.nativePromise('CapacitorUpdater', 'download', { url: asset.browser_download_url, version: version }),
+          C.nativePromise('CapacitorUpdater', 'download', { url: asset.browser_download_url, version: version, checksum: checksum.toLowerCase() }),
           'download'
         );
         log('downloaded ' + version + ' (status ' + bundle.status + ')');

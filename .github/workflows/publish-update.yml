@@ -83,7 +83,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           msg=$(cd web && git log -1 --format=%s)
-          printf 'source: %s\nshell: %s\n\n%s\n' "${{ steps.src.outputs.sha }}" "$GITHUB_SHA" "$msg" > notes.md
+          sum=$(sha256sum bundle.zip | cut -d' ' -f1)
+          printf 'source: %s\nshell: %s\nbundle-sha256: %s\n\n%s\n' "${{ steps.src.outputs.sha }}" "$GITHUB_SHA" "$sum" "$msg" > notes.md
           gh release create "v${{ github.run_number }}" bundle.zip \
             --title "Update v${{ github.run_number }}" \
             --notes-file notes.md \
